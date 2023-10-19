@@ -1,0 +1,4 @@
+import model <MODEL>
+<DEFINE>
+generate <PROCESS>
+output <RUN_NAME> -nojpeg
