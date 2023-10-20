@@ -1,0 +1,12 @@
+#Setup to generate iDM signal with Madgraph within FCC framework
+source setup.sh
+#Prepare the cards for madgraph
+cd MG5prod/
+#edit createCards.py to do either ll or llnunu final state, will need to run both in turn
+#make the cards for all benchmark points
+python createCards.py
+cd ../
+#Options to check files before submitting to condor : -S
+#option to run on LHE files already made from Madgraph, for example to just update the Delphes card: --skip-MGstep -E <path_to_input_lhe_files>
+python submitMG5Prod.py -o MG5prod/ -d h2h2ll --nbps 20 --nRuns 5 --nEvts 100000 -e /eos/user/a/amagnan/FCC/iDMprod/winter2023
+python submitMG5Prod.py -o MG5prod/ -d h2h2llvv --nbps 20 --nRuns 5 --nEvts 100000 -e /eos/user/a/amagnan/FCC/iDMprod/winter2023
