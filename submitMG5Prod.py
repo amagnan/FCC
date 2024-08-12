@@ -38,7 +38,7 @@ parser.add_option('-T', '--teddy-grid'   ,    action="store_true",  dest='dogrid
 (opt, args) = parser.parse_args()
 
 # Read a CSV file into a NumPy array
-data = np.loadtxt('MG5prod/Teddy/cards/input_arguments.txt', delimiter=',')
+data = np.loadtxt('MG5prod/Teddy/cards/input_arguments_test.txt', delimiter=',')
 
 outDirSub='%s/%s/Teddy/%s'%(os.getcwd(),opt.out,opt.datatype)
 for ecm in opt.ecmList:
@@ -139,6 +139,8 @@ if not opt.skipMGStep:
     #scriptFile.write('echo "%s/%s/card_IDEA.tcl" >> ECM${ECM}_%s/me_inputcard.dat\n'%(os.getcwd(),opt.out))
 #MG5prod/Teddy/cards/mH50/idm_dilepton_mH50_mA100/idm_dilepton_mH50_mA100_customizecards.dat
     scriptFile.write('cat %s/ECM${ECM}_%s/new_customizecards.dat >> ECM${ECM}_%s/me_inputcard.dat\n'%(outDirSub,outlabel,outlabel))
+    scriptFile.write('echo \"set ptl 0.5\">>ECM${ECM}_%s/me_inputcard.dat\n'%(outlabel)) 
+    scriptFile.write('echo \"set sde_strategy 1\">>ECM${ECM}_%s/me_inputcard.dat\n'%(outlabel)) 
     scriptFile.write('echo \"set nevents %d\">>ECM${ECM}_%s/me_inputcard.dat\n'%(opt.nEvts,outlabel)) 
     scriptFile.write('./ECM${ECM}_%s/bin/madevent ECM${ECM}_%s/me_inputcard.dat\n'%(outlabel,outlabel)) 
     scriptFile.write('gunzip ECM${ECM}_%s/Events/run_output/unweighted_events.lhe.gz\n'%outlabel) 
@@ -218,7 +220,7 @@ condorFile = open('%s/condorSubmitProd.sub'%(outDirSub), 'w')
 #condorFile.write('x509userproxy = $ENV(X509_USER_PROXY)\n')
 #condorFile.write('use_x509userproxy = True\n')
 condorFile.write('universe = vanilla\n')
-condorFile.write('+JobFlavour = "tomorrow"\n')
+condorFile.write('+JobFlavour = "nextweek"\n')
 condorFile.write('Executable = %s/runJob.sh\n'%outDirSub)
 if opt.dogrid:
     condorFile.write('Arguments = --ecm $(ECM) --mh $(MH) --ma $(MA)\n')
