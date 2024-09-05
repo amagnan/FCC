@@ -74,9 +74,6 @@ set ExecutionPath {
   FastJetFinder
   JetEnergyScale
 
-  GenJetFinderDurhamN2
-  FastJetFinderDurhamN2
-
   JetFlavorAssociation
 
   BTagging
@@ -85,6 +82,8 @@ set ExecutionPath {
 
   TreeWriter
 }
+#GenJetFinderDurhamN2
+#FastJetFinderDurhamN2
 
 #################################
 # Truth Vertex Finder
@@ -1019,8 +1018,8 @@ module TreeWriter TreeWriter {
     add Branch GenJetFinder/jets GenJet Jet
     add Branch GenMissingET/momentum GenMissingET MissingET
 
-    add Branch GenJetFinderDurhamN2/jets GenJetDurhamN2 Jet
-    add Branch FastJetFinderDurhamN2/jets JetDurhamN2 Jet
+    #add Branch GenJetFinderDurhamN2/jets GenJetDurhamN2 Jet
+    #add Branch FastJetFinderDurhamN2/jets JetDurhamN2 Jet
 
     # add Info InfoName InfoValue
     add Info Bz $B
