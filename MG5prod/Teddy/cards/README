@@ -1,1 +1,34 @@
+Input files created by createInputFiles.sh for the 3 scenarios and two center-of-mass energies
+Files input_newprod_fcc_scenarioS_ecmE.dat content:
+mH, mA, mCh
+Files input_newprod_fcc_scenarioS_ecmE_withLam345.dat content:
+mH, mA, mCh, lam345
+
+The scenarios are defined as below:
+For all scenarios:
+* mH from 70 to 120(@240 GeV)/180(@365 GeV) in steps of 5 GeV
+* mA-mH from 2 to max 100(@240 GeV)/225(@365 GeV) -> max allowed value to keep mA+mH<Ecm
+Steps of 2 up to 10, then steps of 5, then again steps of 2 for the last 20 GeV close to the kinematic limit.
+
+- scenario 1:
+lambda_2 = 0.1,
+lambda_345=0,
+mH+ = mA, 
+
+- scenario 2:
+lambda_2 = 0.1,
+lambda_345 = max allowed value parametrised as 0.0018*[mH-72], 
+mH+ = mA
+
+- scenario 3:
+lambda_2 = 0.1,
+lambda_345 = max allowed value parametrised as 0.0018*[mH-72], 
+mH+ = max allowed value, parametrised as:
+* mH+ = mA+60 if (mA-mH)<20 GeV,
+* mH+ = mA+50 if 20<(mA-mH)<50 GeV,
+* mH+ = mA+40 if  50<(mA-mH)<80 GeV
+* mH+ = mA+30 if  80<(mA-mH)<120 GeV
+* mH+ = mA+20 if  120<(mA-mH)<135 GeV
+* mH+ = mA+5 if  (mA-mH)>135 GeV [is this valid up to mA-mH = 225 GeV ?]
+
 
