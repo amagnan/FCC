@@ -12,6 +12,8 @@ process = 'e+ e- > h2 h2 l+ l- vl vl~'
 ebeam = [120,182.5]
 modelpath = '/afs/cern.ch/work/a/amagnan/FCC/MG5prod/InertDoublet_UFO/'
 
+doCharged = True
+
 # Now create the folder for it
 try:
     os.mkdir(run_prefix)
@@ -46,23 +48,45 @@ data = np.loadtxt('Teddy/cards/input_arguments.txt', delimiter=',')
 for eperbeam in ebeam:
     ECM = int(eperbeam*2)
     print(f'ECM = {ECM} GeV')
-    for mH,mA in data:
-        MH = int(mH)
-        MA = int(mA)
-        print(f'mH = {MH}, mA = {MA}')
-        run_name = f'ECM{ECM}_MH{MH}_MA{MA}'
-        run_directory = f"{run_prefix}/{run_name}"
-        try:
-            os.mkdir(run_directory)
-        except:
-            pass
+    if doCharged:
+        for mH,mA,mCh in data:
+            MH = int(mH)
+            MA = int(mA)
+            MHPM = int(mCh)
+            print(f'mH = {MH}, mA = {MA}, mCh = {MHPM}')
+            run_name = f'ECM{ECM}_MH{MH}_MA{MA}_MHPM{MHPM}'
+            run_directory = f"{run_prefix}/{run_name}"
+            try:
+                os.mkdir(run_directory)
+            except:
+                pass
 
-        for template_filename in files:
-            file = readFile(template_filename)
+            for template_filename in files:
+                file = readFile(template_filename)
             
-            file = replaceInFile(file, modelpath, defines, process, run_name, eperbeam)
-            os.system('cp Teddy/cards/mH%d/idm_dilepton_mH%d_mA%d/idm_dilepton_mH%d_mA%d_customizecards.dat %s/new_customizecards.dat'%(MH,MH,MA,MH,MA,run_directory)) 
-            filename = f'new{template_filename}'
-            file_dir = f'{run_directory}/{filename}'
-            saveFile(file, file_dir)
+                file = replaceInFile(file, modelpath, defines, process, run_name, eperbeam)
+                os.system('cp Teddy/cards/mH%d/idm_dilepton_mH%d_mA%d_mHch%d/idm_dilepton_mH%d_mA%d_mHch%d_customizecards.dat %s/new_customizecards.dat'%(MH,MH,MA,MHPM,MH,MA,MHPM,run_directory)) 
+                filename = f'new{template_filename}'
+                file_dir = f'{run_directory}/{filename}'
+                saveFile(file, file_dir)
+    else:
+        for mH,mA in data:
+            MH = int(mH)
+            MA = int(mA)
+            print(f'mH = {MH}, mA = {MA}')
+            run_name = f'ECM{ECM}_MH{MH}_MA{MA}'
+            run_directory = f"{run_prefix}/{run_name}"
+            try:
+                os.mkdir(run_directory)
+            except:
+                pass
+
+            for template_filename in files:
+                file = readFile(template_filename)
+                
+                file = replaceInFile(file, modelpath, defines, process, run_name, eperbeam)
+                os.system('cp Teddy/cards/mH%d/idm_dilepton_mH%d_mA%d/idm_dilepton_mH%d_mA%d_customizecards.dat %s/new_customizecards.dat'%(MH,MH,MA,MH,MA,run_directory)) 
+                filename = f'new{template_filename}'
+                file_dir = f'{run_directory}/{filename}'
+                saveFile(file, file_dir)
 

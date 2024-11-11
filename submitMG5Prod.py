@@ -38,6 +38,8 @@ parser.add_option('-T', '--teddy-grid'   ,    action="store_true",  dest='dogrid
 (opt, args) = parser.parse_args()
 
 
+justXS=True
+
 if opt.dogrid:
     if opt.skipMGStep:
         outDirSub='%s/%s/Teddy/%s/Delphes'%(os.getcwd(),opt.out,opt.datatype)
@@ -152,11 +154,12 @@ if not opt.skipMGStep:
     scriptFile.write('echo \"set ptl 0.5\">>ECM${ECM}_%s/me_inputcard.dat\n'%(outlabel)) 
     #scriptFile.write('echo \"set sde_strategy 1\">>ECM${ECM}_%s/me_inputcard.dat\n'%(outlabel)) 
     scriptFile.write('echo \"set nevents %d\">>ECM${ECM}_%s/me_inputcard.dat\n'%(opt.nEvts,outlabel)) 
-    scriptFile.write('./ECM${ECM}_%s/bin/madevent ECM${ECM}_%s/me_inputcard.dat\n'%(outlabel,outlabel)) 
-    scriptFile.write('gunzip ECM${ECM}_%s/Events/run_output/unweighted_events.lhe.gz\n'%outlabel) 
-    scriptFile.write('sed \"s!<LHEFILE>!ECM${ECM}_%s/Events/run_output/unweighted_events.lhe!g\" %s/%s/p8_lhereader.cmd | sed "s!<NEVTS>!%d!g" > ECM${ECM}_%s/lhereader.cmd\n'%(outlabel,os.getcwd(),opt.out,opt.nEvts*opt.nRuns,outlabel))
-    #scriptFile.write('k4run %s/%s/pythia.py -n %d --out.filename ECM${ECM}_%s/EDM4HEPevents.root --Pythia8.PythiaInterface.pythiacard ECM${ECM}_%s/lhereader.cmd | tee ECM${ECM}_%s/lhereader.log\n'%(os.getcwd(),opt.out,opt.nEvts*opt.nRuns)) 
-    scriptFile.write('DelphesPythia8_EDM4HEP %s/%s/card_IDEA_winter2023.tcl %s/%s/edm4hep_IDEA_winter2023.tcl ECM${ECM}_%s/lhereader.cmd ECM${ECM}_%s/Delphes_EDM4HEPevents.root | tee ECM${ECM}_%s/DelphesP8.log\n'%(os.getcwd(),opt.out,os.getcwd(),opt.out,outlabel,outlabel,outlabel))
+    if not justXS:
+        scriptFile.write('./ECM${ECM}_%s/bin/madevent ECM${ECM}_%s/me_inputcard.dat\n'%(outlabel,outlabel)) 
+        scriptFile.write('gunzip ECM${ECM}_%s/Events/run_output/unweighted_events.lhe.gz\n'%outlabel) 
+        scriptFile.write('sed \"s!<LHEFILE>!ECM${ECM}_%s/Events/run_output/unweighted_events.lhe!g\" %s/%s/p8_lhereader.cmd | sed "s!<NEVTS>!%d!g" > ECM${ECM}_%s/lhereader.cmd\n'%(outlabel,os.getcwd(),opt.out,opt.nEvts*opt.nRuns,outlabel))
+        #scriptFile.write('k4run %s/%s/pythia.py -n %d --out.filename ECM${ECM}_%s/EDM4HEPevents.root --Pythia8.PythiaInterface.pythiacard ECM${ECM}_%s/lhereader.cmd | tee ECM${ECM}_%s/lhereader.log\n'%(os.getcwd(),opt.out,opt.nEvts*opt.nRuns)) 
+        scriptFile.write('DelphesPythia8_EDM4HEP %s/%s/card_IDEA_winter2023.tcl %s/%s/edm4hep_IDEA_winter2023.tcl ECM${ECM}_%s/lhereader.cmd ECM${ECM}_%s/Delphes_EDM4HEPevents.root | tee ECM${ECM}_%s/DelphesP8.log\n'%(os.getcwd(),opt.out,os.getcwd(),opt.out,outlabel,outlabel,outlabel))
 else:
     scriptFile.write('mkdir -p ECM${ECM}_%s\n'%outlabel)
     scriptFile.write('%s %s/LHEevents_%s.lhe.gz ECM${ECM}_%s/LHEevents.lhe.gz\n'%(eoscp,eosDirIn,outTag,outlabel))
@@ -178,38 +181,39 @@ scriptFile.write('echo home=$HOME >> runJob.log\n')
 scriptFile.write('echo path=$PATH >> runJob.log\n')
 scriptFile.write('echo ldlibpath=$LD_LIBRARY_PATH >> runJob.log\n')
 scriptFile.write('ls -ltrh * >> runJob.log\n')
-if not opt.skipMGStep:
-    scriptFile.write('gzip ECM${ECM}_%s/Events/run_output/unweighted_events.lhe\n'%outlabel) 
-    scriptFile.write('mv ECM${ECM}_%s/Events/run_output/unweighted_events.lhe.gz ECM${ECM}_%s/LHEevents.lhe.gz\n'%(outlabel,outlabel)) 
-if len(opt.eosout)>0:
-    scriptFile.write('%s -p %s\n'%(eosmk,eosDir))
+if not justXS:
     if not opt.skipMGStep:
-        scriptFile.write('for outfile in LHEevents.lhe.gz Delphes_EDM4HEPevents.root; do\n')
-    else:
-        scriptFile.write('for outfile in Delphes_EDM4HEPevents.root; do\n')
-    scriptFile.write('ext=${outfile#*.}\n')
-    scriptFile.write('base=${outfile%%.*}\n')
-    scriptFile.write('%s ECM${ECM}_%s/${outfile} %s/${base}_%s.${ext}\n'%(eoscp,outlabel,eosDir,outTag))
-    scriptFile.write('if (( "$?" != "0" )); then\n')
-    scriptFile.write('echo " --- Problem with copy of ${outfile} file to EOS. Keeping locally." >> runJob.log\n')
-    scriptFile.write('cp ECM${ECM}_%s/${outfile} %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
-    scriptFile.write('else\n')
-    scriptFile.write('eossize=`%s -l %s/${base}_%s.${ext} | awk \'{print $5}\'`\n'%(eosls,eosDir,outTag))
-    scriptFile.write('localsize=`ls -l ECM${ECM}_%s/${outfile} | awk \'{print $5}\'`\n'%outlabel)
-    scriptFile.write('if [ $eossize != $localsize ]; then\n')
-    scriptFile.write('echo " --- Copy of ${outfile} file to eos failed. Localsize = $localsize, eossize = $eossize. Keeping locally..." >> runJob.log\n')
-    scriptFile.write('cp ECM${ECM}_%s/${outfile} %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
-    scriptFile.write('else\n')
-    scriptFile.write('echo " --- Size check done: Localsize = $localsize, eossize = $eossize" >> runJob.log\n')
-    scriptFile.write('echo " --- File ${outfile} successfully copied to EOS: %s/${base}_%s.${ext}" >> runJob.log\n'%(eosDir,outTag))
-    scriptFile.write('fi\n')
-    scriptFile.write('fi\n')
-    scriptFile.write('done\n')
+        scriptFile.write('gzip ECM${ECM}_%s/Events/run_output/unweighted_events.lhe\n'%outlabel) 
+        scriptFile.write('mv ECM${ECM}_%s/Events/run_output/unweighted_events.lhe.gz ECM${ECM}_%s/LHEevents.lhe.gz\n'%(outlabel,outlabel)) 
+    if len(opt.eosout)>0:
+        scriptFile.write('%s -p %s\n'%(eosmk,eosDir))
+        if not opt.skipMGStep:
+            scriptFile.write('for outfile in LHEevents.lhe.gz Delphes_EDM4HEPevents.root; do\n')
+        else:
+            scriptFile.write('for outfile in Delphes_EDM4HEPevents.root; do\n')
+        scriptFile.write('ext=${outfile#*.}\n')
+        scriptFile.write('base=${outfile%%.*}\n')
+        scriptFile.write('%s ECM${ECM}_%s/${outfile} %s/${base}_%s.${ext}\n'%(eoscp,outlabel,eosDir,outTag))
+        scriptFile.write('if (( "$?" != "0" )); then\n')
+        scriptFile.write('echo " --- Problem with copy of ${outfile} file to EOS. Keeping locally." >> runJob.log\n')
+        scriptFile.write('cp ECM${ECM}_%s/${outfile} %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
+        scriptFile.write('else\n')
+        scriptFile.write('eossize=`%s -l %s/${base}_%s.${ext} | awk \'{print $5}\'`\n'%(eosls,eosDir,outTag))
+        scriptFile.write('localsize=`ls -l ECM${ECM}_%s/${outfile} | awk \'{print $5}\'`\n'%outlabel)
+        scriptFile.write('if [ $eossize != $localsize ]; then\n')
+        scriptFile.write('echo " --- Copy of ${outfile} file to eos failed. Localsize = $localsize, eossize = $eossize. Keeping locally..." >> runJob.log\n')
+        scriptFile.write('cp ECM${ECM}_%s/${outfile} %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
+        scriptFile.write('else\n')
+        scriptFile.write('echo " --- Size check done: Localsize = $localsize, eossize = $eossize" >> runJob.log\n')
+        scriptFile.write('echo " --- File ${outfile} successfully copied to EOS: %s/${base}_%s.${ext}" >> runJob.log\n'%(eosDir,outTag))
+        scriptFile.write('fi\n')
+        scriptFile.write('fi\n')
+        scriptFile.write('done\n')
 
-else:
-    if not opt.skipMGStep:
-        scriptFile.write('cp ECM${ECM}_%s/LHEevents.lhe.gz %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
-    scriptFile.write('cp ECM${ECM}_%s/Delphes_EDM4HEPevents.root %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
+    else:
+        if not opt.skipMGStep:
+            scriptFile.write('cp ECM${ECM}_%s/LHEevents.lhe.gz %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
+        scriptFile.write('cp ECM${ECM}_%s/Delphes_EDM4HEPevents.root %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
 
 
 scriptFile.write('cp runJob.log %s/ECM${ECM}_%s/.\n'%(outDirSub,outlabel))
