@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+#python submitMG5ProdVaryMch.py -o MG5prod/ -d h2h2ll -T -n 10000 --nRuns 1 -e /eos/experiment/fcc/ee/analyses_storage/BSM/IDM/241113  -S
+
 import subprocess
 import os,sys
 import optparse
@@ -30,52 +32,73 @@ parser.add_option('-G', '--gridProxy',  action="store_true",  dest='gridProxy'  
 parser.add_option('--skip-MGstep'   ,    action="store_true",  dest='skipMGStep'           , help='Skip first MG5 step: copy step1 file from eos.')
 parser.add_option(      '--nbps'       , dest='nBPs'      , type=int,   help='Number of Benchmark Points', default=40)
 parser.add_option( '--ecmList'         , dest='ecmList'        , type='string', help='list of sqrt(s)', action='callback',callback=get_comma_separated_args,default=[240,365])
+parser.add_option( '--scenarios'         , dest='scenarios'        , type='string', help='list of scenarios', action='callback',callback=get_comma_separated_args,default=["cards_scenario_1_base","cards_scenario_2_max_lam345","cards_scenario_3_max_lam345_max_mHch"])
+
+
 parser.add_option( '--bpList'         , dest='bpList'        , type='string', help='list of benchmark points', action='callback',callback=get_comma_separated_args, default=[1,2])
 parser.add_option('-T', '--teddy-grid'   ,    action="store_true",  dest='dogrid'           , help="Do Teddy's grid in mH,mA.")
 
+#FCC_newRun_all/e240/cards_scenario_1_base/input_arguments.txt
+#FCC_newRun_all/e240/cards_scenario_2_max_lam345/input_arguments.txt
+#FCC_newRun_all/e240/cards_scenario_3_max_lam345_max_mHch/input_arguments.txt
+#FCC_newRun_all/e365/cards_scenario_1_base/input_arguments.txt
+#FCC_newRun_all/e365/cards_scenario_2_max_lam345/input_arguments.txt
+#FCC_newRun_all/e365/cards_scenario_3_max_lam345_max_mHch/input_arguments.txt
+
+#cards_scenario_3_max_lam345_max_mHch, 70, 72, 132
 
 
 (opt, args) = parser.parse_args()
 
-
-justXS=True
+prodlabel='241113'
+justXS=False
 
 if opt.dogrid:
     if opt.skipMGStep:
         outDirSub='%s/%s/Teddy/%s/Delphes'%(os.getcwd(),opt.out,opt.datatype)
     else:
         outDirSub='%s/%s/Teddy/%s'%(os.getcwd(),opt.out,opt.datatype)
-    # Read a CSV file into a NumPy array
-    data = np.loadtxt('MG5prod/Teddy/cards/input_arguments.txt', delimiter=',')
 else:
     if opt.skipMGStep:
         outDirSub='%s/%s/%s/Delphes'%(os.getcwd(),opt.out,opt.datatype)
     else:
         outDirSub='%s/%s/%s'%(os.getcwd(),opt.out,opt.datatype)
     
-for ecm in opt.ecmList:
-    if opt.dogrid:
-        for mH,mA,mCh in data:
-            outDir='%s/ECM%d_MH%d_MA%d_MHPM%d'%(outDirSub,int(ecm),int(mH),int(mA),int(mCh))
-    else:    
+if opt.dogrid:
+    for ecm in opt.ecmList:
+        for scen in opt.scenarios:
+            scenId=scen.split("_")[2]
+            print(ecm,scen,scenId)
+            # Read a CSV file into a NumPy array
+            data = np.loadtxt('MG5prod/Teddy/FCC_newRun_all/e%d/%s/input_arguments.txt'%(int(ecm),scen), delimiter=',', usecols = (1,2,3) )
+            for mH,mA,mCh in data:
+                outDir='%s/ECM%d_S%d_MH%d_MA%d_MHPM%d'%(outDirSub,int(ecm),int(scenId),int(mH),int(mA),int(mCh))
+                os.system('mkdir -p %s'%outDir)
+    #quit()
+else:    
+    for ecm in opt.ecmList:
         if opt.nBPs>0:
             for bpnum in range(1,opt.nBPs+1):
                 outDir='%s/ECM%d_BP%d'%(outDirSub,int(ecm),bpnum)
+                os.system('mkdir -p %s'%outDir)
         else:
             for bpnum in opt.bpList:
                 outDir='%s/ECM%d_BP%d'%(outDirSub,int(ecm),int(bpnum))
+                os.system('mkdir -p %s'%outDir)
 
-    os.system('mkdir -p %s'%outDir)
 
+os.system('export EOS_MGM_URL=root://eospublic.cern.ch')
+print("EOS path set to:")
+os.system('echo $EOS_MGM_URL')
 eosDir='%s/%s'%(opt.eosout,opt.datatype)
 eosDirIn='%s/%s'%(opt.eosin,opt.datatype)
 
 eoscp='eos cp'
 eosls='eos ls'
 eosmk='eos mkdir'
-if '/eos/user' in opt.eosin: 
+if ('/eos/user' in opt.eosin) or ('/eos/experiment' in opt.eosin): 
     eoscp='cp'
-if '/eos/user' in opt.eosout:
+if ('/eos/user' in opt.eosout) or ('/eos/experiment' in opt.eosout): 
     eoscp='cp'
     eosls='ls'
     eosmk='mkdir'
@@ -98,24 +121,24 @@ if '/eos/user' in opt.eosout:
 #Could be also $Process if want unique identifier when submitting parallel jobs. 
 #Step will go from 0 to nJobs-1 when doing > queue nJobs.
 if opt.dogrid:
-    labels=('ecm','mh','ma','mch')
-    tags=('ECM','MH','MA','MHPM')
-    outlabel='MH${MH}_MA${MA}_MHPM${MHPM}'
-    outTag='e${ECM}_mH${MH}_mA${MA}_mCh${MHPM}'
+    labels=('ecm','s','mh','ma','mch')
+    tags=('ECM','S','MH','MA','MHPM')
+    outlabel='S${S}_MH${MH}_MA${MA}_MHPM${MHPM}'
+    outTag='e${ECM}_s${S}_mH${MH}_mA${MA}_mCh${MHPM}'
 else:
     labels=('ecm','bpnum')
     tags=('ECM','BP')
     outlabel='BP${BP}'
     outTag='e${ECM}_bp${BP}'
 
-scriptFile = open('%s/runJob.sh'%(outDirSub), 'w')
+scriptFile = open('%s/runJob_%s.sh'%(outDirSub,prodlabel), 'w')
 scriptFile.write('#!/bin/bash\n')
-scriptFile.write('echo "- STARTING of runJob: " >> runJob.log\n')
+scriptFile.write('echo "- STARTING of runJob: " >> runJob_%s.log\n'%(prodlabel))
 if opt.dogrid:
-    scriptFile.write('ARGS=`getopt -o "" -l ",ecm:,mh:,ma:,mch:" -n "getopts_${0}" -- "$@"`\n')
+    scriptFile.write('ARGS=`getopt -o "" -l ",ecm:,s:,mh:,ma:,mch:" -n "getopts_${0}" -- "$@"`\n')
 else:
     scriptFile.write('ARGS=`getopt -o "" -l ",ecm:,bpnum:" -n "getopts_${0}" -- "$@"`\n')
-scriptFile.write('echo "-- Parsing arguments : " ${ARGS} >> runJob.log\n')
+scriptFile.write('echo "-- Parsing arguments : " ${ARGS} >> runJob_%s.log\n'%(prodlabel))
 scriptFile.write('eval set -- "$ARGS"\n')
 scriptFile.write('while true; do\n')
 scriptFile.write('case "$1" in\n')
@@ -123,7 +146,7 @@ for l,t in zip(labels, tags):
     scriptFile.write('--'+l+')\n')
     scriptFile.write('if [ -n "$2" ]; then\n')
     scriptFile.write('{}="${{2}}";\n'.format(t))
-    scriptFile.write('echo "'+l+': ${'+t+'}" >> runJob.log;\n')
+    scriptFile.write('echo "'+l+': ${'+t+'}" >> runJob_%s.log;\n'%(prodlabel))
     scriptFile.write('fi\n')
     scriptFile.write('shift 2;;\n')
 scriptFile.write('--)\n')
@@ -159,13 +182,13 @@ if not opt.skipMGStep:
         scriptFile.write('gunzip ECM${ECM}_%s/Events/run_output/unweighted_events.lhe.gz\n'%outlabel) 
         scriptFile.write('sed \"s!<LHEFILE>!ECM${ECM}_%s/Events/run_output/unweighted_events.lhe!g\" %s/%s/p8_lhereader.cmd | sed "s!<NEVTS>!%d!g" > ECM${ECM}_%s/lhereader.cmd\n'%(outlabel,os.getcwd(),opt.out,opt.nEvts*opt.nRuns,outlabel))
         #scriptFile.write('k4run %s/%s/pythia.py -n %d --out.filename ECM${ECM}_%s/EDM4HEPevents.root --Pythia8.PythiaInterface.pythiacard ECM${ECM}_%s/lhereader.cmd | tee ECM${ECM}_%s/lhereader.log\n'%(os.getcwd(),opt.out,opt.nEvts*opt.nRuns)) 
-        scriptFile.write('DelphesPythia8_EDM4HEP %s/%s/card_IDEA_winter2023.tcl %s/%s/edm4hep_IDEA_winter2023.tcl ECM${ECM}_%s/lhereader.cmd ECM${ECM}_%s/Delphes_EDM4HEPevents.root | tee ECM${ECM}_%s/DelphesP8.log\n'%(os.getcwd(),opt.out,os.getcwd(),opt.out,outlabel,outlabel,outlabel))
+        scriptFile.write('DelphesPythia8_EDM4HEP %s/%s/card_IDEA_winter2023.tcl %s/%s/edm4hep_IDEA_winter2023.tcl ECM${ECM}_%s/lhereader.cmd ECM${ECM}_%s/Delphes_EDM4HEPevents.root 2> /dev/null | tee ECM${ECM}_%s/DelphesP8.log \n'%(os.getcwd(),opt.out,os.getcwd(),opt.out,outlabel,outlabel,outlabel))
 else:
     scriptFile.write('mkdir -p ECM${ECM}_%s\n'%outlabel)
     scriptFile.write('%s %s/LHEevents_%s.lhe.gz ECM${ECM}_%s/LHEevents.lhe.gz\n'%(eoscp,eosDirIn,outTag,outlabel))
     scriptFile.write('gunzip ECM${ECM}_%s/LHEevents.lhe.gz\n'%outlabel) 
     scriptFile.write('sed \"s!<LHEFILE>!ECM${ECM}_%s/LHEevents.lhe!g\" %s/%s/p8_lhereader.cmd | sed "s!<NEVTS>!%d!g" > ECM${ECM}_%s/lhereader.cmd\n'%(outlabel,os.getcwd(),opt.out,opt.nEvts*opt.nRuns,outlabel))
-    scriptFile.write('DelphesPythia8_EDM4HEP %s/%s/card_IDEA_winter2023.tcl %s/%s/edm4hep_IDEA_winter2023.tcl ECM${ECM}_%s/lhereader.cmd ECM${ECM}_%s/Delphes_EDM4HEPevents.root | tee ECM${ECM}_%s/DelphesP8.log\n'%(os.getcwd(),opt.out,os.getcwd(),opt.out,outlabel,outlabel,outlabel))
+    scriptFile.write('DelphesPythia8_EDM4HEP %s/%s/card_IDEA_winter2023.tcl %s/%s/edm4hep_IDEA_winter2023.tcl ECM${ECM}_%s/lhereader.cmd ECM${ECM}_%s/Delphes_EDM4HEPevents.root 2> /dev/null | tee ECM${ECM}_%s/DelphesP8.log\n'%(os.getcwd(),opt.out,os.getcwd(),opt.out,outlabel,outlabel,outlabel))
 
 
 #scriptFile.write('\n') 
@@ -175,12 +198,12 @@ else:
 
 
 
-scriptFile.write('echo "--Local directory is " $localdir >> runJob.log\n')
-#scriptFile.write('voms-proxy-info >> runJob.log\n')
-scriptFile.write('echo home=$HOME >> runJob.log\n')
-scriptFile.write('echo path=$PATH >> runJob.log\n')
-scriptFile.write('echo ldlibpath=$LD_LIBRARY_PATH >> runJob.log\n')
-scriptFile.write('ls -ltrh * >> runJob.log\n')
+scriptFile.write('echo "--Local directory is " $localdir >> runJob_%s.log\n'%(prodlabel))
+#scriptFile.write('voms-proxy-info >> runJob_%s.log\n'%(prodlabel))
+scriptFile.write('echo home=$HOME >> runJob_%s.log\n'%(prodlabel))
+scriptFile.write('echo path=$PATH >> runJob_%s.log\n'%(prodlabel))
+scriptFile.write('echo ldlibpath=$LD_LIBRARY_PATH >> runJob_%s.log\n'%(prodlabel))
+scriptFile.write('ls -ltrh * >> runJob_%s.log\n'%(prodlabel))
 if not justXS:
     if not opt.skipMGStep:
         scriptFile.write('gzip ECM${ECM}_%s/Events/run_output/unweighted_events.lhe\n'%outlabel) 
@@ -195,17 +218,17 @@ if not justXS:
         scriptFile.write('base=${outfile%%.*}\n')
         scriptFile.write('%s ECM${ECM}_%s/${outfile} %s/${base}_%s.${ext}\n'%(eoscp,outlabel,eosDir,outTag))
         scriptFile.write('if (( "$?" != "0" )); then\n')
-        scriptFile.write('echo " --- Problem with copy of ${outfile} file to EOS. Keeping locally." >> runJob.log\n')
+        scriptFile.write('echo " --- Problem with copy of ${outfile} file to EOS. Keeping locally." >> runJob_%s.log\n'%(prodlabel))
         scriptFile.write('cp ECM${ECM}_%s/${outfile} %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
         scriptFile.write('else\n')
         scriptFile.write('eossize=`%s -l %s/${base}_%s.${ext} | awk \'{print $5}\'`\n'%(eosls,eosDir,outTag))
         scriptFile.write('localsize=`ls -l ECM${ECM}_%s/${outfile} | awk \'{print $5}\'`\n'%outlabel)
         scriptFile.write('if [ $eossize != $localsize ]; then\n')
-        scriptFile.write('echo " --- Copy of ${outfile} file to eos failed. Localsize = $localsize, eossize = $eossize. Keeping locally..." >> runJob.log\n')
+        scriptFile.write('echo " --- Copy of ${outfile} file to eos failed. Localsize = $localsize, eossize = $eossize. Keeping locally..." >> runJob_%s.log\n'%(prodlabel))
         scriptFile.write('cp ECM${ECM}_%s/${outfile} %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
         scriptFile.write('else\n')
-        scriptFile.write('echo " --- Size check done: Localsize = $localsize, eossize = $eossize" >> runJob.log\n')
-        scriptFile.write('echo " --- File ${outfile} successfully copied to EOS: %s/${base}_%s.${ext}" >> runJob.log\n'%(eosDir,outTag))
+        scriptFile.write('echo " --- Size check done: Localsize = $localsize, eossize = $eossize" >> runJob_%s.log\n'%(prodlabel))
+        scriptFile.write('echo " --- File ${outfile} successfully copied to EOS: %s/${base}_%s.${ext}" >> runJob_%s.log\n'%(eosDir,outTag,prodlabel))
         scriptFile.write('fi\n')
         scriptFile.write('fi\n')
         scriptFile.write('done\n')
@@ -216,7 +239,7 @@ if not justXS:
         scriptFile.write('cp ECM${ECM}_%s/Delphes_EDM4HEPevents.root %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
 
 
-scriptFile.write('cp runJob.log %s/ECM${ECM}_%s/.\n'%(outDirSub,outlabel))
+scriptFile.write('cp runJob_%s.log %s/ECM${ECM}_%s/.\n'%(prodlabel,outDirSub,outlabel))
 scriptFile.write('cp ECM${ECM}_%s/*.html %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
 #scriptFile.write('cp ECM${ECM}_%s/lhereader.log %s/ECM${ECM}_%s/.\n'%(outDirSub))
 scriptFile.write('cp ECM${ECM}_%s/DelphesP8.log %s/ECM${ECM}_%s/.\n'%(outlabel,outDirSub,outlabel))
@@ -230,15 +253,16 @@ scriptFile.close()
 #proxyPath=proxyPath.readline().strip()
 
 #submit
-condorFile = open('%s/condorSubmitProd.sub'%(outDirSub), 'w')
+
+condorFile = open('%s/condorSubmitProd_%s.sub'%(outDirSub,prodlabel), 'w')
 #condorFile.write('x509userproxy = $ENV(X509_USER_PROXY)\n')
 #condorFile.write('use_x509userproxy = True\n')
 condorFile.write('universe = vanilla\n')
 condorFile.write('+JobFlavour = "nextweek"\n')
-condorFile.write('Executable = %s/runJob.sh\n'%outDirSub)
+condorFile.write('Executable = %s/runJob_%s.sh\n'%(outDirSub,prodlabel))
 if opt.dogrid:
-    condorFile.write('Arguments = --ecm $(ECM) --mh $(MH) --ma $(MA) --mch $(MHPM)\n')
-    condorlab='MH$(MH)_MA$(MA)_MHPM$(MHPM)'
+    condorFile.write('Arguments = --ecm $(ECM) --s $(S) --mh $(MH) --ma $(MA) --mch $(MHPM)\n')
+    condorlab='S$(S)_MH$(MH)_MA$(MA)_MHPM$(MHPM)'
 
 else:
     condorFile.write('Arguments = --ecm $(ECM) --bpnum $(BP)\n')
@@ -249,10 +273,13 @@ condorFile.write('Error  = %s/ECM$(ECM)_%s/condor.err\n'%(outDirSub,condorlab))
 condorFile.write('Log    = %s/ECM$(ECM)_%s/condor.log\n'%(outDirSub,condorlab))
 
 if opt.dogrid:
-    condorFile.write('Queue 1 ECM, MH, MA, MHPM from (\n')
+    condorFile.write('Queue 1 ECM, S, MH, MA, MHPM from (\n')
     for ecm in opt.ecmList:
-        for mh,ma,mch in data:
-            condorFile.write('{}, {}, {}, {}\n'.format(ecm,int(mh),int(ma),int(mch)))
+        for scen in opt.scenarios:
+            s=scen.split("_")[2]
+            data = np.loadtxt('MG5prod/Teddy/FCC_newRun_all/e%d/%s/input_arguments.txt'%(int(ecm),scen), delimiter=',', usecols = (1,2,3) )
+            for mh,ma,mch in data:
+                condorFile.write('{}, {}, {}, {}, {}\n'.format(ecm,int(s),int(mh),int(ma),int(mch)))
 else:
     condorFile.write('Queue 1 ECM, BP from (\n')
     for ecm in opt.ecmList:
@@ -267,9 +294,9 @@ condorFile.write(')')
 
 condorFile.close()
 
-os.system('chmod u+rwx %s/runJob.sh'%outDirSub)
-if opt.nosubmit : os.system('echo condor_submit %s/condorSubmitProd.sub'%(outDirSub)) 
+os.system('chmod u+rwx %s/runJob_%s.sh'%(outDirSub,prodlabel))
+if opt.nosubmit : os.system('echo condor_submit %s/condorSubmitProd_%s.sub'%(outDirSub,prodlabel)) 
 else: 
     os.system('echo submitting job %s'%(outDirSub))
-    os.system('condor_submit %s/condorSubmitProd.sub'%(outDirSub))
+    os.system('condor_submit %s/condorSubmitProd_%s.sub'%(outDirSub,prodlabel))
 
